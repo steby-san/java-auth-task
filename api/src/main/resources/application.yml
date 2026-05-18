@@ -1,0 +1,51 @@
+spring:
+  profiles:
+    active: local
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/auth_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:placeholder-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:placeholder-secret}
+            scope:
+              - email
+              - profile
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID:placeholder-id}
+            client-secret: ${FACEBOOK_CLIENT_SECRET:placeholder-secret}
+            scope:
+              - email
+              - public_profile
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    private-key-path: classpath:certs/private.pem
+    public-key-path: classpath:certs/public.pem
+    access-token-expiration-ms: 900000 # 15 minutes (15 * 60 * 1000)
+    refresh-token-expiration-ms: 604800000 # 7 days (7 * 24 * 60 * 60 * 1000)
