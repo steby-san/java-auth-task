@@ -21,13 +21,6 @@ public class Permission {
     @Column(length = 36)
     private String id;
 
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-    }
-
     @Column(name = "permission_code", nullable = false, unique = true)
     private String permissionCode;
 
@@ -41,10 +34,16 @@ public class Permission {
     private LocalDateTime createdAt;
 
     @ManyToMany(mappedBy = "permissions", fetch = FetchType.LAZY)
+    @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
     @PrePersist
     public void prePersist() {
+
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+
         createdAt = LocalDateTime.now();
     }
 }

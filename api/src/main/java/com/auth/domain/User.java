@@ -26,13 +26,6 @@ public class User {
     @Column(length = 36)
     private String id;
 
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-    }
-
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
@@ -70,6 +63,7 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
     @OneToMany(
@@ -78,10 +72,16 @@ public class User {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
+    @Builder.Default
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
     @PrePersist
     public void prePersist() {
+
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

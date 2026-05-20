@@ -19,13 +19,6 @@ public class RefreshToken {
     @Column(length = 36)
     private String id;
 
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-    }
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -53,6 +46,11 @@ public class RefreshToken {
 
     @PrePersist
     public void prePersist() {
+
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+
         createdAt = LocalDateTime.now();
     }
 }

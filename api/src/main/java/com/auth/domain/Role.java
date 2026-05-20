@@ -3,7 +3,6 @@ package com.auth.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.security.Permission;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -22,13 +21,6 @@ public class Role {
     @Column(length = 36)
     private String id;
 
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-    }
-
     @Column(name = "role_code", nullable = false, unique = true)
     private String roleCode;
 
@@ -38,6 +30,7 @@ public class Role {
     private LocalDateTime createdAt;
 
     @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    @Builder.Default
     private Set<User> users = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -46,10 +39,16 @@ public class Role {
             joinColumns = @JoinColumn(name = "role_id"),
             inverseJoinColumns = @JoinColumn(name = "permission_id")
     )
+    @Builder.Default
     private Set<Permission> permissions = new HashSet<>();
 
     @PrePersist
     public void prePersist() {
+
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+
         createdAt = LocalDateTime.now();
     }
 }
