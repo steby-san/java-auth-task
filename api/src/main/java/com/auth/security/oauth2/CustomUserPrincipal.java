@@ -1,4 +1,4 @@
-package com.auth.security;
+package com.auth.security.oauth2;
 
 import com.auth.model.User;
 import lombok.AllArgsConstructor;
@@ -15,7 +15,9 @@ import java.util.Map;
 public class CustomUserPrincipal implements OAuth2User, UserDetails {
 
     private final User user;
+
     private final Map<String, Object> attributes;
+
     private final Collection<? extends GrantedAuthority> authorities;
 
     @Override
@@ -24,18 +26,23 @@ public class CustomUserPrincipal implements OAuth2User, UserDetails {
     }
 
     @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
     public String getName() {
         return user.getEmail();
     }
 
     @Override
-    public String getPassword() {
-        return user.getPassword(); // FIX
+    public String getUsername() {
+        return user.getEmail();
     }
 
     @Override
-    public String getUsername() {
-        return user.getEmail();
+    public String getPassword() {
+        return user.getPassword();
     }
 
     @Override
@@ -45,7 +52,7 @@ public class CustomUserPrincipal implements OAuth2User, UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return user.isAccountNonLocked(); // FIX
+        return user.isAccountNonLocked();
     }
 
     @Override
@@ -55,6 +62,6 @@ public class CustomUserPrincipal implements OAuth2User, UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.isEnabled(); // FIX
+        return user.isEnabled();
     }
 }

@@ -35,7 +35,7 @@ public class JwtService {
                 .subject(user.getEmail())
                 .claims(Map.of(
                         "userId", user.getId(),
-                        "provider", user.getProvider().name()
+                        "provider", user.getAuthProvider().name()
                 ))
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))

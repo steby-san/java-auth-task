@@ -2,40 +2,44 @@ package com.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "roles", indexes = @Index(name = "idx_roles_code", columnList = "role_code"))
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Table(name = "roles")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Role {
 
     @Id
-    @Column(columnDefinition = "CHAR(36)")
-    private UUID id;
+    @Column(length = 36)
+    private String id;
 
-    @Column(name = "role_code", nullable = false, unique = true, length = 50)
+    @Column(name = "role_code", nullable = false, unique = true)
     private String roleCode;
 
-    @Column(length = 255)
     private String description;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private Instant createdAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    @Builder.Default
+    @ManyToMany(mappedBy = "roles")
     private Set<User> users = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "role_permission_mappings",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
-    private Set<Permission> permissions = new HashSet<>();
+    @PrePersist
+    public void prePersist() {
+
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+
+        createdAt = LocalDateTime.now();
+    }
 }

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -28,10 +29,10 @@ public class RefreshTokenService {
                 .user(user)
                 .tokenValue(token)
                 .clientIp(ip)
-                .userAgent(userAgent)
-                .revoked(false)
+                .userAgentString(userAgent)
+                .isRevoked(false)
                 .expiresAt(
-                        LocalDateTime.now().plusDays(7)
+                        Instant.now().plusSeconds(604800)
                 )
                 .build();
 

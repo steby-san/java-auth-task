@@ -49,14 +49,14 @@ public class Dev2TokenService {
     @Transactional
     public String generateAndStoreRefreshToken(User user, String clientIp, String userAgent) {
         // Revoke tất cả refresh tokens cũ của user này
-        refreshTokenRepository.revokeAllUserTokens(user.getId());
+        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(user.getId()));
 
         // Tạo refresh token mới
         String tokenValue = UUID.randomUUID().toString();
         Instant expiresAt = Instant.now().plusSeconds(refreshTokenExpirationSeconds);
 
         RefreshToken refreshToken = RefreshToken.builder()
-                .id(UUID.randomUUID())
+                .id(String.valueOf(UUID.randomUUID()))
                 .user(user)
                 .tokenValue(tokenValue)
                 .expiresAt(expiresAt)
