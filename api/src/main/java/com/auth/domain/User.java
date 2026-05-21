@@ -1,102 +1,93 @@
 package com.auth.domain;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
-@Data
-@Builder
+import java.util.UUID;
+
+@Entity
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+        }
+)
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "users")  // ✅ Khớp với tên bảng trong DB
-public class User implements UserDetails {
+@Builder
+public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(length = 36)
+    private String id;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
+    @Column(name = "password_hash")
     private String password;
 
+    @Column(name = "first_name", length = 100)
     private String firstName;
+
+    @Column(name = "last_name", length = 100)
     private String lastName;
 
-    @Builder.Default
-    private Boolean enabled = true;
+    @Column(name = "is_enabled", nullable = false)
+    private boolean enabled = true;
 
-    @Builder.Default
-    private Boolean accountNonLocked = true;
+    @Column(name = "is_account_non_locked", nullable = false)
+    private boolean accountNonLocked = true;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "provider")  // ✅ Khớp với column trong DB
-    private AuthProvider provider;  // ✅ Đã import AuthProvider
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private AuthProvider provider = AuthProvider.LOCAL;
 
-    @Column(name = "provider_id")  // ✅ Khớp với column
+    @Column(name = "external_provider_id")
     private String providerId;
 
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "user_roles",  // ✅ Khớp với tên bảng join
-            joinColumns = @JoinColumn(name = "user_id"),  // ✅ Khớp với column
-            inverseJoinColumns = @JoinColumn(name = "role_id")  // ✅ Khớp với column
+            name = "user_role_mappings",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     @Builder.Default
-    private Set<Role> roles = new HashSet<>();  // ✅ Type là Set<Role>
+    private Set<Role> roles = new HashSet<>();
 
-    // === UserDetails Methods ===
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))  // ✅ role.getName() exists
-                .collect(Collectors.toList());
-    }
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private Set<RefreshToken> refreshTokens = new HashSet<>();
 
-    @Override
-    public String getUsername() {
-        return email;
-    }
+    @PrePersist
+    public void prePersist() {
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return accountNonLocked != null && accountNonLocked;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return enabled != null && enabled;
-    }
-
-    // === Helper Methods ===
-    public String getFullName() {
-        if (firstName != null && lastName != null) {
-            return firstName + " " + lastName;
+        if (id == null) {
+            id = UUID.randomUUID().toString();
         }
-        return email;
+
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
