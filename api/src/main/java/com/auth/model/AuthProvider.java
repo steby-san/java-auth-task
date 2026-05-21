@@ -1,4 +1,4 @@
-package com.auth.domain;
+package com.auth.model  ;
 
 public enum AuthProvider {
     LOCAL,

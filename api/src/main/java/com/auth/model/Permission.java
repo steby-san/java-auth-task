@@ -1,4 +1,4 @@
-package com.auth.domain;
+package com.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
