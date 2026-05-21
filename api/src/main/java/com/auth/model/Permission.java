@@ -2,48 +2,35 @@ package com.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "permissions")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "permissions", indexes = @Index(name = "idx_permissions_code", columnList = "permission_code"))
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Permission {
 
     @Id
-    @Column(length = 36)
-    private String id;
+    @Column(columnDefinition = "CHAR(36)")
+    private UUID id;
 
-    @Column(name = "permission_code", nullable = false, unique = true)
+    @Column(name = "permission_code", nullable = false, unique = true, length = 50)
     private String permissionCode;
 
-    @Column(name = "resource_type")
+    @Column(name = "resource_type", length = 50)
     private String resourceType;
 
-    @Column(name = "action_type")
+    @Column(name = "action_type", length = 20)
     private String actionType;
 
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @ManyToMany(mappedBy = "permissions", fetch = FetchType.LAZY)
-    @Builder.Default
     private Set<Role> roles = new HashSet<>();
-
-    @PrePersist
-    public void prePersist() {
-
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-
-        createdAt = LocalDateTime.now();
-    }
 }

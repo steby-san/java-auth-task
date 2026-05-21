@@ -2,36 +2,44 @@ package com.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
-@Table(name = "role_permission_mappings")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "role_permission_mappings",
+        indexes = {
+                @Index(name = "idx_rpm_role", columnList = "role_id"),
+                @Index(name = "idx_rpm_perm", columnList = "permission_id")
+        })
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class RolePermissionMapping {
 
     @EmbeddedId
-    private RolePermissionId id;
+    private RolePermissionMappingId id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("roleId")
-    @JoinColumn(name = "role_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("permissionId")
-    @JoinColumn(name = "permission_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "permission_id", nullable = false)
     private Permission permission;
 
-    @Column(name = "assigned_at")
-    private LocalDateTime assignedAt;
+    @CreationTimestamp
+    @Column(name = "assigned_at", updatable = false)
+    private Instant assignedAt;
+}
 
-    @PrePersist
-    public void prePersist() {
-        assignedAt = LocalDateTime.now();
-    }
+@Embeddable
+@Data @NoArgsConstructor @AllArgsConstructor
+class RolePermissionMappingId implements java.io.Serializable {
+    @Column(name = "role_id", columnDefinition = "CHAR(36)")
+    private UUID roleId;
+
+    @Column(name = "permission_id", columnDefinition = "CHAR(36)")
+    private UUID permissionId;
 }

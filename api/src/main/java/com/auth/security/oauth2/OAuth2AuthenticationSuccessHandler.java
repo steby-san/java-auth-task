@@ -1,73 +1,84 @@
 package com.auth.security.oauth2;
 
-import com.auth.security.CustomUserPrincipal;
-import com.auth.service.JwtService;
-import com.auth.service.RefreshTokenService;
-import jakarta.servlet.ServletException;
+import com.auth.model.User;
+import com.auth.security.jwt.TokenProvider;
+import com.auth.service.Dev2TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Arrays;
 
 @Component
 @RequiredArgsConstructor
-public class OAuth2AuthenticationSuccessHandler
-        extends SimpleUrlAuthenticationSuccessHandler {
+@Slf4j
+public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtService jwtService;
-    private final RefreshTokenService refreshTokenService;
+    private final TokenProvider tokenProvider;
+    private final Dev2TokenService dev2TokenService;
 
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
+    @Value("${app.oauth2.authorized-redirect-uris}")
+    private String[] authorizedRedirectUris;
 
     @Override
-    public void onAuthenticationSuccess(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            Authentication authentication
-    ) throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        Authentication authentication) throws IOException {
 
-        CustomUserPrincipal principal =
-                (CustomUserPrincipal) authentication.getPrincipal();
+        OAuth2AuthenticationToken oauth2Token = (OAuth2AuthenticationToken) authentication;
 
-        String accessToken =
-                jwtService.generateAccessToken(principal.getUser());
+        CustomOAuth2User customUser = (CustomOAuth2User) oauth2Token.getPrincipal();
+        User user = customUser.getUser();
 
-        String refreshToken =
-                refreshTokenService.createRefreshToken(
-                        principal.getUser(),
-                        request.getRemoteAddr(),
-                        request.getHeader("User-Agent")
-                );
+        log.info("OAuth2 success for user: {}", user.getEmail());
 
-        Cookie refreshCookie = new Cookie(
-                "refresh_token",
-                refreshToken
-        );
+        String accessToken = tokenProvider.generateToken(user);
+        String refreshToken = dev2TokenService.generateAndStoreRefreshToken(user);
 
+        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
         refreshCookie.setHttpOnly(true);
-
-        refreshCookie.setSecure(true);
-
+        refreshCookie.setSecure(request.isSecure()); // Chỉ gửi qua HTTPS
         refreshCookie.setPath("/");
-
-        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
-
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
         response.addCookie(refreshCookie);
 
-        String redirectUrl =
-                frontendUrl + "/oauth2/redirect?token=" + accessToken;
+        // ✅ Redirect với access token
+        String targetUrl = determineTargetUrl(request) + "?token=" + accessToken;
+        log.info("Redirecting to: {}", targetUrl);
 
-        getRedirectStrategy().sendRedirect(
-                request,
-                response,
-                redirectUrl
-        );
+        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+
+    private String determineTargetUrl(HttpServletRequest request) {
+        String redirectUri = request.getParameter("redirect_uri");
+
+        if (StringUtils.hasText(redirectUri) && isAuthorizedRedirectUri(redirectUri)) {
+            return redirectUri;
+        }
+        return authorizedRedirectUris[0];
+    }
+
+    private boolean isAuthorizedRedirectUri(String uri) {
+        try {
+            URI clientRedirectUri = URI.create(uri);
+            return Arrays.stream(authorizedRedirectUris)
+                    .anyMatch(authorizedUri -> {
+                        URI authorized = URI.create(authorizedUri);
+                        return authorized.getHost().equalsIgnoreCase(clientRedirectUri.getHost())
+                                && authorized.getPort() == clientRedirectUri.getPort();
+                    });
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
