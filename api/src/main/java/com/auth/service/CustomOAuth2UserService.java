@@ -1,9 +1,9 @@
 package com.auth.service;
 
-import com.auth.model.AuthProvider;
+import com.auth.model.enums.AuthProvider;
 import com.auth.model.User;
 import com.auth.repository.UserRepository;
-import com.auth.security.CustomUserPrincipal;
+import com.auth.security.oauth2.CustomUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -80,12 +80,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .id(UUID.randomUUID().toString())
                 .email(email)
                 .firstName(name)
-                .provider(
+                .authProvider(
                         "google".equals(provider)
                                 ? AuthProvider.GOOGLE
                                 : AuthProvider.FACEBOOK
                 )
-                .providerId(providerId)
+                .externalProviderId(providerId)
                 .enabled(true)
                 .accountNonLocked(true)
                 .build();

@@ -44,8 +44,8 @@ public class UserRoleMapping {
 class UserRoleMappingId implements java.io.Serializable {
 
     @Column(name = "user_id", columnDefinition = "CHAR(36)")
-    private UUID userId;
+    private String  userId;
 
     @Column(name = "role_id", columnDefinition = "CHAR(36)")
-    private UUID roleId;
+    private String roleId;
 }

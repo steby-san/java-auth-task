@@ -38,8 +38,8 @@ public class RolePermissionMapping {
 @Data @NoArgsConstructor @AllArgsConstructor
 class RolePermissionMappingId implements java.io.Serializable {
     @Column(name = "role_id", columnDefinition = "CHAR(36)")
-    private UUID roleId;
+    private String roleId;
 
     @Column(name = "permission_id", columnDefinition = "CHAR(36)")
-    private UUID permissionId;
+    private String permissionId;
 }
