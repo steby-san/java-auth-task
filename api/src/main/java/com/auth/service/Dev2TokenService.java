@@ -3,7 +3,8 @@ package com.auth.service;
 import com.auth.model.RefreshToken;
 import com.auth.model.User;
 import com.auth.repository.RefreshTokenRepository;
-import com.auth.repository.UserRepository;
+import com.auth.security.jwt.TokenProvider;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,133 +21,142 @@ import java.util.UUID;
 public class Dev2TokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
+    private final TokenProvider tokenProvider;
 
     @Value("${app.refresh-token.expiration-seconds:604800}")
-    private long refreshTokenExpirationSeconds; // Default 7 days
+    private long refreshTokenExpirationSeconds;
 
-    /**
-     * Generate refresh token mới và lưu vào database
-     */
+    // ================= CREATE =================
     @Transactional
     public String generateAndStoreRefreshToken(User user) {
-        return generateAndStoreRefreshToken(user, null, null);
-    }
 
-    /**
-     * Generate refresh token mới với thông tin client
-     */
-    @Transactional
-    public String generateAndStoreRefreshToken(User user, HttpServletRequest request) {
-        String clientIp = getClientIp(request);
-        String userAgent = request.getHeader("User-Agent");
-        return generateAndStoreRefreshToken(user, clientIp, userAgent);
-    }
-
-    /**
-     * Generate refresh token mới
-     */
-    @Transactional
-    public String generateAndStoreRefreshToken(User user, String clientIp, String userAgent) {
-        // Revoke tất cả refresh tokens cũ của user này
+        // revoke all old tokens (ROTATION BASE RULE)
         refreshTokenRepository.revokeAllUserTokens(UUID.fromString(user.getId()));
 
-        // Tạo refresh token mới
         String tokenValue = UUID.randomUUID().toString();
-        Instant expiresAt = Instant.now().plusSeconds(refreshTokenExpirationSeconds);
 
         RefreshToken refreshToken = RefreshToken.builder()
-                .id(String.valueOf(UUID.randomUUID()))
+                .id(UUID.randomUUID().toString())
                 .user(user)
                 .tokenValue(tokenValue)
-                .expiresAt(expiresAt)
+                .expiresAt(Instant.now().plusSeconds(refreshTokenExpirationSeconds))
+                .isRevoked(false)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        return tokenValue;
+    }
+
+    // overload with request info
+    @Transactional
+    public String generateAndStoreRefreshToken(User user, HttpServletRequest request) {
+
+        String clientIp = getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(user.getId()));
+
+        String tokenValue = UUID.randomUUID().toString();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .id(UUID.randomUUID().toString())
+                .user(user)
+                .tokenValue(tokenValue)
+                .expiresAt(Instant.now().plusSeconds(refreshTokenExpirationSeconds))
                 .isRevoked(false)
                 .clientIp(clientIp)
                 .userAgentString(userAgent)
                 .build();
 
         refreshTokenRepository.save(refreshToken);
-        log.info("Generated refresh token for user: {} (expires: {})", user.getEmail(), expiresAt);
 
         return tokenValue;
     }
 
-    /**
-     * Verify refresh token
-     */
+    // ================= VERIFY =================
     @Transactional(readOnly = true)
     public RefreshToken verifyRefreshToken(String token) {
-        return refreshTokenRepository.findByTokenValue(token)
-                .orElseThrow(() -> new RuntimeException("Refresh token not found"));
+
+        RefreshToken refreshToken = refreshTokenRepository
+                .findByTokenValue(token)
+                .orElse(null);
+
+        if (refreshToken == null) {
+            return null;
+        }
+
+        if (refreshToken.getIsRevoked() || refreshToken.isExpired()) {
+            return refreshToken;
+        }
+
+        return refreshToken;
     }
 
-    /**
-     * Kiểm tra refresh token có hợp lệ không
-     */
-    public boolean isTokenValid(RefreshToken token) {
-        return token != null && !token.getIsRevoked() && !token.isExpired();
+    // ================= ROTATION CORE (IMPORTANT) =================
+    @Transactional
+    public String rotateToken(String refreshTokenValue,
+                              HttpServletRequest request, HttpServletResponse response) {
+
+        RefreshToken oldToken = refreshTokenRepository
+                .findByTokenValue(refreshTokenValue)
+                .orElse(null);
+
+        // ❌ INVALID TOKEN CASE
+        if (oldToken == null || oldToken.getIsRevoked() || oldToken.isExpired()) {
+
+            if (oldToken != null) {
+                // 🔥 FORCE LOGOUT ALL DEVICES
+                refreshTokenRepository.revokeAllUserTokens(UUID.fromString(oldToken.getUser().getId()));
+            }
+
+            throw new RuntimeException("401 Unauthorized - Invalid Refresh Token");
+        }
+
+        User user = oldToken.getUser();
+
+        // ❌ revoke old token
+        oldToken.setIsRevoked(true);
+        oldToken.setRevokedAt(Instant.now());
+        refreshTokenRepository.save(oldToken);
+
+        // ✔ generate NEW access token
+        String newAccessToken = tokenProvider.generateToken(user);
+
+        // ✔ generate NEW refresh token (ROTATION)
+        String newRefreshToken = generateAndStoreRefreshToken(user, request);
+
+        return newAccessToken; // return access token only
     }
 
-    /**
-     * Revoke refresh token
-     */
+    // ================= REVOKE =================
     @Transactional
     public void revokeToken(String tokenValue) {
+
         refreshTokenRepository.findByTokenValue(tokenValue)
                 .ifPresent(token -> {
                     token.setIsRevoked(true);
                     token.setRevokedAt(Instant.now());
                     refreshTokenRepository.save(token);
-                    log.info("Revoked refresh token: {}", tokenValue);
                 });
     }
 
-    /**
-     * Revoke tất cả tokens của user
-     */
     @Transactional
-    public void revokeAllUserTokens(UUID userId) {
-        refreshTokenRepository.revokeAllUserTokens(userId);
-        log.info("Revoked all tokens for user: {}", userId);
+    public void revokeAllUserTokens(String userId) {
+        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(userId));
     }
 
-    /**
-     * Xóa các token đã hết hạn
-     */
+    // ================= CLEAN EXPIRED =================
     @Transactional
     public void deleteExpiredTokens() {
-        int deletedCount = refreshTokenRepository.deleteAllExpired();
-        log.info("Deleted {} expired refresh tokens", deletedCount);
+        refreshTokenRepository.deleteAllExpired();
     }
 
-    /**
-     * Refresh access token sử dụng refresh token
-     */
-    @Transactional
-    public String refreshAccessToken(String refreshTokenValue) {
-        RefreshToken refreshToken = verifyRefreshToken(refreshTokenValue);
-
-        if (!isTokenValid(refreshToken)) {
-            throw new RuntimeException("Refresh token is invalid or expired");
-        }
-
-        // Revoke token cũ
-        refreshToken.setIsRevoked(true);
-        refreshToken.setRevokedAt(Instant.now());
-        refreshTokenRepository.save(refreshToken);
-
-        // Generate token mới
-        User user = refreshToken.getUser();
-        return generateAndStoreRefreshToken(user, refreshToken.getClientIp(), refreshToken.getUserAgentString());
-    }
-
-    /**
-     * Lấy IP address từ request
-     */
+    // ================= IP HELPER =================
     private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-FORWARDED-FOR");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+        String xff = request.getHeader("X-FORWARDED-FOR");
+        if (xff != null && !xff.isEmpty()) {
+            return xff.split(",")[0].trim();
         }
         return request.getRemoteAddr();
     }
