@@ -12,11 +12,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
+public interface RefreshTokenRepository extends JpaRepository<RefreshToken, String> {
 
     Optional<RefreshToken> findByTokenValue(String tokenValue);
 
-    List<RefreshToken> findByUserId(UUID userId);
+    List<RefreshToken> findByUserId(String userId);
 
     List<RefreshToken> findByIsRevokedTrue();
 
@@ -25,9 +25,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.isRevoked = true, rt.revokedAt = :now WHERE rt.user.id = :userId AND rt.isRevoked = false")
-    int revokeAllUserTokens(UUID userId, Instant now);
+    int revokeAllUserTokens(String userId, Instant now);
 
-    default int revokeAllUserTokens(UUID userId) {
+    default int revokeAllUserTokens(String userId) {
         return revokeAllUserTokens(userId, Instant.now());
     }
 

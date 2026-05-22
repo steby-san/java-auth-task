@@ -60,12 +60,18 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
+        java.util.List<SimpleGrantedAuthority> authorities = user.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority(role.getRoleCode()))
+                .collect(Collectors.toList());
+
+        if (authorities.isEmpty()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        }
+
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
-                user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority(role.getRoleCode()))
-                        .collect(Collectors.toList())
+                authorities
         );
     }
 
