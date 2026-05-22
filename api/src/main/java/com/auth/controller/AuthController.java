@@ -26,6 +26,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final TokenProvider tokenProvider;
     private final Dev2TokenService refreshTokenService;
+    private final com.auth.service.UserService userService;
 
     // ================= REGISTER =================
     @PostMapping("/register")
@@ -36,16 +37,18 @@ public class AuthController {
     // ================= LOGIN =================
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> request,
-                                   HttpServletResponse response) {
+            HttpServletResponse response) {
 
         String email = request.get("email");
         String password = request.get("password");
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
-        );
+                new UsernamePasswordAuthenticationToken(email, password));
 
-        User user = (User) authentication.getPrincipal();
+        org.springframework.security.core.userdetails.User springUser = (org.springframework.security.core.userdetails.User) authentication
+                .getPrincipal();
+
+        User user = userService.findByEmail(springUser.getUsername());
 
         String accessToken = tokenProvider.generateToken(user);
         String refreshToken = refreshTokenService.generateAndStoreRefreshToken(user);
@@ -60,8 +63,7 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of(
                 "accessToken", accessToken,
-                "tokenType", "Bearer"
-        ));
+                "tokenType", "Bearer"));
     }
 
     // ================= REFRESH =================
@@ -69,10 +71,8 @@ public class AuthController {
     public ResponseEntity<?> refresh(
             @CookieValue(name = "refresh_token") String refreshToken,
             HttpServletRequest request,
-            HttpServletResponse response
-    ) {
+            HttpServletResponse response) {
         return ResponseEntity.ok(
-                refreshTokenService.rotateToken(refreshToken, request, response)
-        );
+                refreshTokenService.rotateToken(refreshToken, request, response));
     }
 }
