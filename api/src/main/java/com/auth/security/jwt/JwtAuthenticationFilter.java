@@ -23,10 +23,10 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    private final JwtUtils jwtUtils;
+    private final TokenProvider tokenProvider;
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtils) {
-        this.jwtUtils = jwtUtils;
+    public JwtAuthenticationFilter(TokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
     }
 
     @Override
@@ -35,13 +35,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @Nonnull FilterChain filterChain) throws ServletException, IOException {
 
         String jwt = parseJwt(request);
-        if (jwt == null || !jwtUtils.validateToken(jwt)) {
+        if (jwt == null || !tokenProvider.validateToken(jwt)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String email = jwtUtils.getEmailFromToken(jwt);
-        List<String> roles = jwtUtils.getRolesFromToken(jwt);
+        String email = tokenProvider.getEmailFromToken(jwt);
+        List<String> roles = tokenProvider.getRolesFromToken(jwt);
 
         List<SimpleGrantedAuthority> authorities = roles.stream()
                 .map(role -> new SimpleGrantedAuthority(

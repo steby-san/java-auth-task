@@ -31,7 +31,7 @@ public class Dev2TokenService {
     public String generateAndStoreRefreshToken(User user) {
 
         // revoke all old tokens (ROTATION BASE RULE)
-        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(user.getId()));
+        refreshTokenRepository.revokeAllUserTokens(user.getId());
 
         String tokenValue = UUID.randomUUID().toString();
 
@@ -55,7 +55,7 @@ public class Dev2TokenService {
         String clientIp = getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
 
-        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(user.getId()));
+        refreshTokenRepository.revokeAllUserTokens(user.getId());
 
         String tokenValue = UUID.randomUUID().toString();
 
@@ -107,7 +107,7 @@ public class Dev2TokenService {
 
             if (oldToken != null) {
                 // 🔥 FORCE LOGOUT ALL DEVICES
-                refreshTokenRepository.revokeAllUserTokens(UUID.fromString(oldToken.getUser().getId()));
+                refreshTokenRepository.revokeAllUserTokens(oldToken.getUser().getId());
             }
 
             throw new RuntimeException("401 Unauthorized - Invalid Refresh Token");
@@ -143,7 +143,7 @@ public class Dev2TokenService {
 
     @Transactional
     public void revokeAllUserTokens(String userId) {
-        refreshTokenRepository.revokeAllUserTokens(UUID.fromString(userId));
+        refreshTokenRepository.revokeAllUserTokens(userId);
     }
 
     // ================= CLEAN EXPIRED =================
