@@ -95,8 +95,8 @@ public class Dev2TokenService {
 
     // ================= ROTATION CORE (IMPORTANT) =================
     @Transactional
-    public String rotateToken(String refreshTokenValue,
-                              HttpServletRequest request, HttpServletResponse response) {
+    public java.util.Map<String, String> rotateToken(String refreshTokenValue,
+            HttpServletRequest request, HttpServletResponse response) {
 
         RefreshToken oldToken = refreshTokenRepository
                 .findByTokenValue(refreshTokenValue)
@@ -126,7 +126,17 @@ public class Dev2TokenService {
         // ✔ generate NEW refresh token (ROTATION)
         String newRefreshToken = generateAndStoreRefreshToken(user, request);
 
-        return newAccessToken; // return access token only
+        // Add the new refresh token as a cookie
+        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refresh_token", newRefreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false); // dev
+        cookie.setPath("/");
+        cookie.setMaxAge(7 * 24 * 60 * 60);
+        response.addCookie(cookie);
+
+        return java.util.Map.of(
+                "accessToken", newAccessToken,
+                "tokenType", "Bearer");
     }
 
     // ================= REVOKE =================
