@@ -9,14 +9,21 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+import com.auth.repository.UserRepository;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class UserController {
 
+    private final UserRepository userRepository;
+
     // ================= PROFILE USER =================
     @GetMapping("/users/profile")
-    public ResponseEntity<?> profile(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> profile(@AuthenticationPrincipal String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         return ResponseEntity.ok(user);
     }
 
