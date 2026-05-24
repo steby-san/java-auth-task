@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --font-outfit: "Outfit", sans-serif;
+}
+
+@layer utilities {
+  .minimal-input {
+    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-black focus:ring-1 focus:ring-black;
+  }
+  .minimal-btn {
+    @apply w-full flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold text-white bg-black hover:bg-slate-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .minimal-card {
+    @apply bg-white border border-slate-200 rounded-[24px] shadow-sm;
+  }
+}
